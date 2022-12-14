@@ -20,17 +20,13 @@ library(car)
 select <- dplyr::select
 ```
 
-
+# Load data
 ```{r}
 df_body_fat <- read_excel("body_density_data.xlsx") %>%
   select(-id,-bodyfat_siri,-body_density) %>%
   filter(bodyfat_brozek > 0)
 ```
-
-```{r}
-pairs(df_body_fat)
-```
-
+# Check normality of outcomes
 ```{r}
 df_body_fat %>%
   ggplot(aes(x = bodyfat_brozek)) +
@@ -40,7 +36,7 @@ df_body_fat %>%
 ```{r}
 shapiro.test(df_body_fat$bodyfat_brozek)
 ```
-
+# Check collinearity
 ```{r}
 mult.fit <- lm(bodyfat_brozek ~ .,data = df_body_fat)
 #create vector of VIF values
@@ -52,7 +48,7 @@ barplot(vif_values, main = "VIF Values", horiz = TRUE)
 #add vertical line at 5
 abline(v = 5, lwd = 3, lty = 2)    
 ```
-
+# Refit after delete correlated variables
 ```{r}
 #filter out high vif variable.
 df_body_fat <-
@@ -90,14 +86,6 @@ summary(forward.fit)
 summary(stepwise.fit)
 ```
 
-
-```{r}
-lm(formula = bodyfat_brozek ~ weight + age, data = df_body_fat) %>% summary()
-```
-
-```{r}
-cor(df_body_fat)
-```
 # Criterion Base
 ```{r}
 mat <- as.matrix(df_body_fat)
@@ -146,7 +134,7 @@ mtemp <- lm(formula = bodyfat_brozek ~ age + height + neck + abdomen +
 par(mfrow = c(2,2))
 plot(mtemp)
 ```
-
+# Validation
 ```{r}
 train = trainControl(method = "cv", number = 10)
 model_caret = train(bodyfat_brozek ~ age + height + neck + abdomen + 
