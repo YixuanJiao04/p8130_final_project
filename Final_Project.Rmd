@@ -21,7 +21,7 @@ library(GGally)
 
 select <- dplyr::select
 knitr::opts_chunk$set(echo = FALSE, message = FALSE,fig.width = 6, fig.height = 4)
-set.seed(30)
+set.seed(65)
 ```
 
 ```{r}
@@ -49,7 +49,14 @@ In the rest of the analysis, percent body fat using Brozek’s equation is chose
 
 ## Model Building
 
-Variance inflation factor (VIF) for each variable is calculated for checking collinearity. Variables with VIF > 5 suggest that the coefficients might be misleading due to collinearity and high collinearity. `weight`, `hip`, `abdomen`, `chest`, and `thigh` have VIF > 5, but according to the p-values of the complete linear model, only `abdomen` is significant. Therefore, all these variables except `abdomen` are excluded. Re-calculate the VIFs and no more collinearity is found. Different model selection procedures are conducted on the remaining variables to generate candidate models. Procedures include automatic procedure (stepwise), criterion based procedure (Cp value and Adjusted R square), and LASSO. Interactions between main effects are considered by conducting a two-way ANOVA test. A 10-fold cross validation is used to compare the candidate models based on predictive ability and select a final “best” model. Diagnostic plots are also generated for comparison and final model selection.
+Variance inflation factor (VIF) for each variable is calculated for checking collinearity. Variables with VIF > 5 suggest that the coefficients might be misleading due to collinearity and high collinearity. `weight`, `hip`, `abdomen`, `chest`, and `thigh` have VIF > 5, but according to the p-values of the complete linear model, only `abdomen` is significant. Therefore, all these variables except `abdomen` are excluded. Re-calculate the VIFs and no more collinearity is found. Different model selection procedures are conducted on the remaining variables to generate candidate models. Procedures include automatic procedure (stepwise), criterion based procedure (Cp value and Adjusted R^2^), and LASSO. Interactions between main effects are considered by conducting a two-way ANOVA test. A 10-fold cross validation is used to compare the candidate models based on predictive ability and select a final “best” model. Diagnostic plots are also generated for comparison and final model selection.
+
+# Result
+
+The candidate model from stepwise regression includes `age`, `height`, `neck`, `abdomen`, `forearm`, and `wrist` as predictors to predict `bodyfat_brozek`. The candidate models from LASSO and criterion approach include all the same predictors as the model from stepwise regression, but also include an extra predictor `bicep`. Among the predictors in the candidate models, two-way ANOVA test(table?) reveals interaction between neck and abdomen has significant p-value = 0.000477 for model 1 and p-value = 0.000379 for model 2, suggesting it should be included in the model  under 5% significance. Therefore, the final candidate models are as following:
+ Candidate model 1: `bodyfat_brozek` ~ `age` + `height` +  `neck` +  `abdomen` + `forearm` + `wrist` + `neck:abdomen`
+Candidate model 2: `bodyfat_brozek` ~ `age` + `height` +  `neck` +  `abdomen` + `forearm` + `wrist` + `bicep` + `neck:abdomen`
+The RMSE for 10-fold cross validation is 3.95 for model 1, and 3.98 for model 2. Therefore, model 1 has better predictivity than model 2. The adjusted R-squared for is 0.7385 for both model 1 and model 2, which means that `bicep` is not adding value to the model. Diagnosis plots(figure?) are also suggest that model 1 fits the underlying assumptions of linear regression better than model 2, because *add reasons*. In conclusion, the final model chosen is candidate model 1.
 
 ```{r}
 #Histogram of distribution of bodyfat
@@ -60,7 +67,7 @@ df_body_fat_raw %>%
   labs(title = "Distribution of Bodyfat Index Computed by Brozek equation",
        x = "Bodyfat Index Computed by Brozek equation",
        y = "Count",
-       caption="Fig1: Distribution of Bodyfat Index Computed by Brozek equation")
+       caption = "Fig2: Distribution of Bodyfat Index Computed by Brozek equation")
 ```
 
 ```{r}
@@ -84,7 +91,8 @@ ggplot(data = vif_df,aes(y = variable, x = vif_values)) +
   theme_bw() +
   labs(x = "VIF Value",
        y = "Variable",
-       title = "VIF Value of Predictors")
+       title = "VIF Value of Predictors",
+       caption = "Fig3: VIF Value of Predictors")
 ```
 
 ```{r}
@@ -103,7 +111,8 @@ ggplot(data = vif_df,aes(y = variable, x = vif_values)) +
   theme_bw() +
   labs(x = "VIF Value",
        y = "Variable",
-       title = "VIF Value After Removing Highly Correlated Predictors")
+       title = "VIF Value After Removing Highly Correlated Predictors",
+       caption = "VIF Value After Removing Highly Correlated Predictors")
 
 ```
 
@@ -127,12 +136,9 @@ summary(stepwise.fit) %>%
   knitr::kable(digits = c(5,2,2,2), "latex",caption = "Parameter for Stepwise Model")
 ```
 
-```{r}
+```{r results=FALSE}
 mat <- as.matrix(df_body_fat)
 leaps(x = mat[,c(-1)] , y = mat[,1], nbest = 1, method = "Cp")
-```
-
-```{r}
 leaps(x = mat[,c(-1)] , y = mat[,1], nbest = 1, method = "adjr2")
 ```
 
@@ -178,14 +184,15 @@ lasso_fit <- glmnet(as.matrix(df_body_fat[c(-1)]), df_body_fat$bodyfat_brozek, l
 coef(lasso_fit)
 ```
 
-```{r}
-mtemp <- lm(formula = bodyfat_brozek ~ age + height + neck + abdomen + 
-    forearm + wrist, data = df_body_fat)
-par(mfrow = c(2,2))
-plot(mtemp)
-```
+```{r echo = TRUE}
+train = trainControl(method = "cv", number = 10)
+model_caret = train(bodyfat_brozek ~ age + height + neck + abdomen + 
+    forearm + bicep + wrist + neck:abdomen, data = df_body_fat,
+trControl = train,
+method = 'lm',
+na.action = na.pass)
+print(model_caret)
 
-```{r}
 train = trainControl(method = "cv", number = 10)
 model_caret = train(bodyfat_brozek ~ age + height + neck + abdomen + 
     forearm + wrist + neck:abdomen, data = df_body_fat,
@@ -205,13 +212,20 @@ interact_plot(update(stepwise.fit, . ~ . + neck*abdomen),pred = neck, modx = abd
 ```
 
 
-```{r}
-aov(bodyfat_brozek ~ (age + height + neck + abdomen + forearm + wrist)^2,data = df_body_fat) %>% summary
-
+```{r echo = TRUE}
 aov(update(stepwise.fit, . ~ . + neck*abdomen)) %>% summary
+aov(update(stepwise.fit, . ~ . + bicep + neck*abdomen)) %>% summary
+````
+
+```{r}
+final_mod1 <- update(stepwise.fit, . ~ . + neck*abdomen)
+final_mod2 <- update(stepwise.fit, . ~ . + bicep + neck*abdomen)
+par(mfrow = c(2,2))
+plot(final_mod1)
 ```
 
 ```{r}
-update(stepwise.fit, . ~ . + bicep) %>% summary
+par(mfrow = c(2,2))
+plot(final_mod2)
 ```
 

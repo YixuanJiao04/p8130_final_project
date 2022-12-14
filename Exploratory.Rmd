@@ -47,7 +47,7 @@ Plot scatter plots between each pair variables, destiny plots for each variable,
 df_body_fat %>%
   select(-bodyfat_siri, -body_density) %>%
   ggpairs() +
-  labs(caption = "Fig1")
+  labs(caption = "Fig1: Distributions for each Variable and Pairwise Relationship between each pair of Variables")
 
 ggsave("./plots/bodyfat_brozek_pairs.png", width = 14, height = 14)
 ```
