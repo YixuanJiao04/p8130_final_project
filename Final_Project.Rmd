@@ -1,0 +1,149 @@
+---
+title: "Final Project"
+author: "Yixuan Jiao, Landi Guo, Fengdi Zhang"
+date: "2022-12-13"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r}
+library(readxl)
+library(tidyverse)
+library(leaps)
+library(glmnet)
+library(corrplot)
+library(caret)
+library(MASS)
+library(car)
+
+select <- dplyr::select
+```
+
+
+```{r}
+df_body_fat <- read_excel("body_density_data.xlsx") %>%
+  select(-id,-bodyfat_siri,-body_density) %>%
+  filter(bodyfat_brozek > 0)
+```
+
+```{r}
+pairs(df_body_fat)
+```
+
+```{r}
+df_body_fat %>%
+  ggplot(aes(x = bodyfat_brozek)) +
+  geom_histogram()
+```
+
+```{r}
+shapiro.test(df_body_fat$body_density)
+```
+
+```{r}
+mult.fit <- lm(bodyfat_brozek ~ .,data = df_body_fat)
+#create vector of VIF values
+vif_values <- vif(mult.fit)
+
+#create horizontal bar chart to display each VIF value
+barplot(vif_values, main = "VIF Values", horiz = TRUE)
+
+#add vertical line at 5
+abline(v = 5, lwd = 3, lty = 2)    
+```
+
+```{r}
+#filter out high vif variable.
+df_body_fat <-
+  df_body_fat
+```
+
+
+# Automatic Selection
+```{r}
+backward.fit <- step(mult.fit, direction='backward',trace = FALSE)
+intercept_only <- lm(bodyfat_brozek ~ 1, data = df_body_fat)
+forward.fit <- step(intercept_only, direction = "forward", scope = formula(mult.fit), trace = FALSE)
+stepwise.fit <- step(mult.fit, direction='both',trace = FALSE)
+```
+
+```{r}
+summary(backward.fit)
+```
+
+```{r}
+summary(forward.fit)
+```
+
+```{r}
+summary(stepwise.fit)
+```
+
+
+```{r}
+lm(formula = bodyfat_brozek ~ weight + age, data = df_body_fat) %>% summary()
+```
+
+```{r}
+cor(df_body_fat)
+```
+# Criterion Base
+```{r}
+mat <- as.matrix(df_body_fat)
+leaps(x = mat[,c(-1)] , y = mat[,1], nbest = 1, method = "Cp")
+```
+
+```{r}
+leaps(x = mat[,c(-1)] , y = mat[,1], nbest = 1, method = "adjr2")
+```
+
+```{r}
+rs <- regsubsets(bodyfat_brozek ~ ., data = df_body_fat, nbest = 1) %>% summary()
+```
+
+```{r}
+par(mfrow = c(1,2))
+plot(2:9, rs$cp, xlab="# of parameters", ylab="Cp Statistic")
+abline(0,1)
+plot(2:9, rs$adjr2, xlab="# of parameters", ylab="Adj R2")
+```
+# Lasso and Ridge
+```{r}
+lambda_seq <- 10^seq(-3, 0, by = .01)
+alpha_seq <- seq(0,1, by = .1)
+set.seed(14)
+cv_object <- cv.glmnet(as.matrix(df_body_fat[c(-1)]), df_body_fat$bodyfat_brozek,
+lambda = lambda_seq, nfolds = 5, alpha = 0.5)
+cv_object
+```
+
+```{r}
+tibble(lambda = cv_object$lambda,
+mean_cv_error = cv_object$cvm) %>%
+ggplot(aes(x = lambda, y = mean_cv_error)) +
+geom_point()
+```
+
+```{r}
+lasso_fit <- glmnet(as.matrix(df_body_fat[c(-1)]), df_body_fat$bodyfat_brozek, lambda = cv_object$lambda.min)
+coef(lasso_fit)
+
+```
+
+```{r}
+mtemp <- lm(formula = bodyfat_brozek ~ age + weight + neck + abdomen + 
+    hip + thigh + forearm + wrist, data = df_body_fat)
+par(mfrow = c(2,2))
+plot(mtemp)
+```
+
+```{r}
+train = trainControl(method = "cv", number = 10)
+model_caret = train(bodyfat_brozek ~ weight + abdomen + wrist + weight*abdomen, data = df_body_fat,
+trControl = train,
+method = 'lm',
+na.action = na.pass)
+print(model_caret)
+```
+
