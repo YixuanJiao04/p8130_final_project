@@ -1,5 +1,5 @@
 ---
-title: "Final Project"
+title: "Final Project Raw Code"
 author: "Yixuan Jiao, Landi Guo, Fengdi Zhang"
 date: "2022-12-13"
 output: html_document
@@ -16,6 +16,7 @@ library(corrplot)
 library(caret)
 library(MASS)
 library(car)
+library(interactions)
 
 select <- dplyr::select
 ```
@@ -27,26 +28,38 @@ df_body_fat <- read_excel("body_density_data.xlsx") %>%
   filter(bodyfat_brozek > 0)
 ```
 # Check normality of outcomes
+
+## Histogram
 ```{r}
 df_body_fat %>%
   ggplot(aes(x = bodyfat_brozek)) +
-  geom_histogram()
+  geom_histogram() +
+  theme_bw() +
+  labs(title = "Distribution of Bodyfat Index Computed by Brozek equation",
+       x = "Bodyfat Index Computed by Brozek equation",
+       y = "Count")
 ```
-
+## Shapiro Test
 ```{r}
 shapiro.test(df_body_fat$bodyfat_brozek)
 ```
 # Check collinearity
 ```{r}
 mult.fit <- lm(bodyfat_brozek ~ .,data = df_body_fat)
-#create vector of VIF values
+
 vif_values <- vif(mult.fit)
+v_names <- str_to_title (names(vif_values))
+vif_df <- 
+  tibble(variable = v_names, vif = vif_values) %>%
+  mutate(variable = fct_reorder(variable,vif))
 
-#create horizontal bar chart to display each VIF value
-barplot(vif_values, main = "VIF Values", horiz = TRUE)
-
-#add vertical line at 5
-abline(v = 5, lwd = 3, lty = 2)    
+ggplot(data = vif_df,aes(y = variable, x = vif_values)) +
+  geom_col() +
+  geom_vline(xintercept = 5,colour="red",linetype = "longdash") +
+  theme_bw() +
+  labs(x = "VIF Value",
+       y = "Variable",
+       title = "VIF Value of Predictors")
 ```
 # Refit after delete correlated variables
 ```{r}
@@ -55,37 +68,29 @@ df_body_fat <-
   df_body_fat %>%
   select(-weight,-chest,-hip,-thigh)
 mult.fit <- lm(bodyfat_brozek ~ .,data = df_body_fat)
-#create vector of VIF values
+
 vif_values <- vif(mult.fit)
+v_names <- str_to_title (names(vif_values))
+vif_df <- 
+  tibble(variable = v_names, vif = vif_values) %>%
+  mutate(variable = fct_reorder(variable,vif))
 
-#create horizontal bar chart to display each VIF value
-barplot(vif_values, main = "VIF Values", horiz = TRUE)
+ggplot(data = vif_df,aes(y = variable, x = vif_values)) +
+  geom_col() +
+  geom_vline(xintercept = 5,colour="red",linetype = "longdash") +
+  theme_bw() +
+  labs(x = "VIF Value",
+       y = "Variable",
+       title = "VIF Value After Removing Highly Correlated Predictors")
 
-#add vertical line at 5
-abline(v = 5, lwd = 3, lty = 2)
 ```
 
 
-# Automatic Selection
+# Automatic Procedure
 ```{r}
-backward.fit <- step(mult.fit, direction='backward',trace = FALSE)
-intercept_only <- lm(bodyfat_brozek ~ 1, data = df_body_fat)
-forward.fit <- step(intercept_only, direction = "forward", scope = formula(mult.fit), trace = FALSE)
 stepwise.fit <- step(mult.fit, direction='both',trace = FALSE)
+summary(stepwise.fit) %>% broom::tidy() %>% knitr::kable(digits = c(5,2,2,2), "latex")
 ```
-
-```{r}
-summary(backward.fit)
-```
-
-```{r}
-summary(forward.fit)
-```
-
-```{r}
-summary(stepwise.fit)
-```
-
 # Criterion Base
 ```{r}
 mat <- as.matrix(df_body_fat)
@@ -116,10 +121,22 @@ cv_object
 ```
 
 ```{r}
+highlight_lamda <- 
+  tibble(lambda = cv_object$lambda,
+mean_cv_error = cv_object$cvm) %>%
+  arrange(mean_cv_error)
+
+
 tibble(lambda = cv_object$lambda,
 mean_cv_error = cv_object$cvm) %>%
 ggplot(aes(x = lambda, y = mean_cv_error)) +
-geom_point()
+  geom_point() + 
+  geom_point(data = highlight_lamda[1,], aes(x = lambda, y = mean_cv_error, color = 'red')) +
+  labs(x = "Lambda",
+       y = "Mean CV Error",
+       title = "Lambda vs. Mean CV Error") +
+  theme_bw()
+  
 ```
 
 ```{r}
@@ -138,10 +155,30 @@ plot(mtemp)
 ```{r}
 train = trainControl(method = "cv", number = 10)
 model_caret = train(bodyfat_brozek ~ age + height + neck + abdomen + 
-    forearm + wrist, data = df_body_fat,
+    forearm + wrist + neck:abdomen, data = df_body_fat,
 trControl = train,
 method = 'lm',
 na.action = na.pass)
 print(model_caret)
+```
+
+```{r}
+inter_model <- lm(bodyfat_brozek ~ (age + height + neck + abdomen + forearm + wrist)^2, data = df_body_fat)
+interact_plot(inter_model,pred = neck, modx = abdomen)
+```
+
+```{r}
+interact_plot(update(stepwise.fit, . ~ . + neck*abdomen),pred = neck, modx = abdomen)
+```
+
+
+```{r}
+aov(bodyfat_brozek ~ (age + height + neck + abdomen + forearm + wrist)^2,data = df_body_fat) %>% summary
+
+aov(update(stepwise.fit, . ~ . + neck*abdomen)) %>% summary
+```
+
+```{r}
+update(stepwise.fit, . ~ . + bicep) %>% summary
 ```
 
