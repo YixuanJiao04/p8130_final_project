@@ -21,7 +21,7 @@ library(GGally)
 
 select <- dplyr::select
 knitr::opts_chunk$set(echo = FALSE, message = FALSE,fig.width = 6, fig.height = 4)
-set.seed(14)
+set.seed(30)
 ```
 
 ```{r}
@@ -173,10 +173,9 @@ ggplot(aes(x = lambda, y = mean_cv_error)) +
   
 ```
 
-```{r}
+```{r echo = TRUE}
 lasso_fit <- glmnet(as.matrix(df_body_fat[c(-1)]), df_body_fat$bodyfat_brozek, lambda = cv_object$lambda.min)
 coef(lasso_fit)
-
 ```
 
 ```{r}
