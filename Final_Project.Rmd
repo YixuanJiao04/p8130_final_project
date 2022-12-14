@@ -38,7 +38,7 @@ df_body_fat %>%
 ```
 
 ```{r}
-shapiro.test(df_body_fat$body_density)
+shapiro.test(df_body_fat$bodyfat_brozek)
 ```
 
 ```{r}
@@ -56,7 +56,17 @@ abline(v = 5, lwd = 3, lty = 2)
 ```{r}
 #filter out high vif variable.
 df_body_fat <-
-  df_body_fat
+  df_body_fat %>%
+  select(-weight,-chest,-hip,-thigh)
+mult.fit <- lm(bodyfat_brozek ~ .,data = df_body_fat)
+#create vector of VIF values
+vif_values <- vif(mult.fit)
+
+#create horizontal bar chart to display each VIF value
+barplot(vif_values, main = "VIF Values", horiz = TRUE)
+
+#add vertical line at 5
+abline(v = 5, lwd = 3, lty = 2)
 ```
 
 
@@ -110,11 +120,10 @@ plot(2:9, rs$adjr2, xlab="# of parameters", ylab="Adj R2")
 ```
 # Lasso and Ridge
 ```{r}
-lambda_seq <- 10^seq(-3, 0, by = .01)
-alpha_seq <- seq(0,1, by = .1)
+lambda_seq <- 10^seq(-3, 0, by = .1)
 set.seed(14)
 cv_object <- cv.glmnet(as.matrix(df_body_fat[c(-1)]), df_body_fat$bodyfat_brozek,
-lambda = lambda_seq, nfolds = 5, alpha = 0.5)
+lambda = lambda_seq, nfolds = 5)
 cv_object
 ```
 
@@ -132,15 +141,16 @@ coef(lasso_fit)
 ```
 
 ```{r}
-mtemp <- lm(formula = bodyfat_brozek ~ age + weight + neck + abdomen + 
-    hip + thigh + forearm + wrist, data = df_body_fat)
+mtemp <- lm(formula = bodyfat_brozek ~ age + height + neck + abdomen + 
+    forearm + wrist, data = df_body_fat)
 par(mfrow = c(2,2))
 plot(mtemp)
 ```
 
 ```{r}
 train = trainControl(method = "cv", number = 10)
-model_caret = train(bodyfat_brozek ~ weight + abdomen + wrist + weight*abdomen, data = df_body_fat,
+model_caret = train(bodyfat_brozek ~ age + height + neck + abdomen + 
+    forearm + wrist, data = df_body_fat,
 trControl = train,
 method = 'lm',
 na.action = na.pass)
