@@ -8,6 +8,7 @@ editor_options:
 ---
 
 ```{r echo = FALSE, message = FALSE}
+#Load package and set seed
 library(readxl)
 library(tidyverse)
 library(leaps)
@@ -41,24 +42,58 @@ In this study, a multiple linear regression model is developed to predict body f
 
 # Introduction
 
-Although fat is an essential part of our body and an important source of stored energy, excessive amounts of body fat is associated with type 2 diabetes, heart diseases, and stroke. More than 25 percent body fat is considered obese for adult male, while more than 32 percent body fat is considered obese for adult women. National data from the 2017-2020 National Health and Nutrition Examination Survey revealed that 41.9 percent of adults in the U.S. have obesity, and the adult obesity rate is over 35 percent in nineteen states. As obesity becomes one of the most common medical conditions in the U.S., it is important to find an accurate and easy way to find out one’s body fat. Unfortunately, body fat is not always straightforward to measure. We are given a dataset containing percentage of body fat, age, height, weight, and other body circumference measurements for 252 men. How can we possibly estimate body fat for men in a more convenient way? This project aims to build a multiple linear regression model using scale and tape measurements to predict body fat for men.
+Although fat is an important source of stored energy, excessive amounts of body fat have been linked to various health issues, including type 2 diabetes, heart disease, and stroke^1^. According to widely accepted standards, an adult male with more than 25% body fat and an adult female with more than 32% body fat is considered obese^2^. The National Health and Nutrition Examination Survey from 2017-2020 found that 41.9% of adults in the United States have obesity, with rates over 35% in 19 states^3^. Given the prevalence of obesity, it is important to have accurate and convenient methods for measuring body fat. However, measuring body fat can be challenging. This project aims to develop a multiple linear regression model using scale and tape measurements to predict body fat in men, using a dataset of 252 male subjects with data on body fat percentage, age, height, weight, and other body circumference measurements.
 
 # Methods
-## Exploratory Analysis
-Exploratory analysis is conducted to check for patterns, distributions, and anomalies in the dataset. This dataset contains 252 observations which are all male, and 16 variables of interest. The first three variables are body fat measured in three different ways (Brozek’s, Siri’s, body density). The rest of the variables are age(years), weight(lbs), heights(inches), neck(neck circumference in cm), chest(chest circumference in cm), abdomen(abdomen circumference in cm), hip(hip circumference in cm), thigh(thigh circumference in cm), knee(knee circumference in cm), ankle(ankle circumference in cm), bicep(extended biceps circumference in cm), forearm(forearm circumference in cm), and wrist(wrist circumference in cm). These are simple measurements that can potentially be used to predict body fats.
 
-In the rest of the analysis, percent body fat using Brozek’s equation is chosen as the outcome. Firstly, one entry with 0 body fat is removed from the dataset. Mean and range are summarized for the remaining observations(Table1). Then marginal distributions for each variable and pairwise relationship between each pair of variables are plotted(Fig1). The distributions for all variables are symmetric, therefore no transformation is needed. To confirm the normality of `bodyfat_brozek`, formal Shapiro’s test is conducted. The results of the test align with the histogram that `bodyfat_brozek` is normally distributed (Fig2). Pairwise scatterplot shows that all variables are linearly correlated with `bodyfat_brozek`. Additionally, there are many variables that are highly correlated with other variables, which require further investigation.
+Exploratory analysis is conducted to check for patterns, distributions, and anomalies in the dataset. This dataset contains 252 observations which are all male, and 16 variables of interest. The variables include three measures of body fat (Brozek's, Siri's, and body density) as well as age, weight, height, and various body circumference measurements including neck, chest, abdomen, hip, thigh, knee, ankle, bicep, forearm, and wrist. 
+In the following analysis, percent body fat using Brozek’s equation is chosen as the outcome. Firstly, one observation with 0% body fat is removed from the dataset. The mean and range are summarized for the remaining observations(table1). Then marginal distributions for each variable and pairwise relationship between each pair of variables are plotted(figure1). The distributions for all variables are symmetric, so no transformation is necessary. To confirm the normality of `bodyfat_brozek`, formal Shapiro’s test is conducted, which supports the conclusion based on the histogram that the body fat percentage is normally distributed. The pairwise scatterplot shows that all variables are linearly correlated with body fat percentage. Additionally, there are many variables that are highly correlated with other variables, which warrants further investigation.
 
-## Model Building
+Variance inflation factor (VIF) is calculated for each variable to assess collinearity. Variables with VIF greater than 5 may have misleading coefficients due to high collinearity. Upon calculation, the variables `weight`, `hip`, `abdomen`, `chest`, and `thigh` have VIF greater than 5. However, according to the p-values of the complete linear model, only `abdomen` is significant. Therefore, all of these variables except `abdomen` are excluded. After recalculating the VIFs, no further collinearity is identified. Various model selection procedures are then applied to the remaining variables to generate candidate models, including automatic procedure (stepwise), criterion based procedure (Cp value and Adjusted R square), and LASSO ($\lambda$ = 0.1). The interaction between main effects are also considered through a two-way ANOVA test. A 10-fold cross validation is used to compare the candidate models based on predictive ability and select a final “best” model. Diagnostic plots are also generated for comparison and final model selection.
 
-Variance inflation factor (VIF) for each variable is calculated for checking collinearity. Variables with VIF > 5 suggest that the coefficients might be misleading due to collinearity and high collinearity. `weight`, `hip`, `abdomen`, `chest`, and `thigh` have VIF > 5, but according to the p-values of the complete linear model, only `abdomen` is significant. Therefore, all these variables except `abdomen` are excluded. Re-calculate the VIFs and no more collinearity is found. Different model selection procedures are conducted on the remaining variables to generate candidate models. Procedures include automatic procedure (stepwise), criterion based procedure (Cp value and Adjusted R^2^), and LASSO. Interactions between main effects are considered by conducting a two-way ANOVA test. A 10-fold cross validation is used to compare the candidate models based on predictive ability and select a final “best” model. Diagnostic plots are also generated for comparison and final model selection.
 
 # Result
 
-The candidate model from stepwise regression includes `age`, `height`, `neck`, `abdomen`, `forearm`, and `wrist` as predictors to predict `bodyfat_brozek`. The candidate models from LASSO and criterion approach include all the same predictors as the model from stepwise regression, but also include an extra predictor `bicep`. Among the predictors in the candidate models, two-way ANOVA test(table?) reveals interaction between neck and abdomen has significant p-value = 0.000477 for model 1 and p-value = 0.000379 for model 2, suggesting it should be included in the model  under 5% significance. Therefore, the final candidate models are as following:
- Candidate model 1: `bodyfat_brozek` ~ `age` + `height` +  `neck` +  `abdomen` + `forearm` + `wrist` + `neck:abdomen`
-Candidate model 2: `bodyfat_brozek` ~ `age` + `height` +  `neck` +  `abdomen` + `forearm` + `wrist` + `bicep` + `neck:abdomen`
-The RMSE for 10-fold cross validation is 3.95 for model 1, and 3.98 for model 2. Therefore, model 1 has better predictivity than model 2. The adjusted R-squared for is 0.7385 for both model 1 and model 2, which means that `bicep` is not adding value to the model. Diagnosis plots(figure?) are also suggest that model 1 fits the underlying assumptions of linear regression better than model 2, because *add reasons*. In conclusion, the final model chosen is candidate model 1.
+The candidate model from stepwise regression includes `age`, `height`, `neck`, `abdomen`, `forearm`, and `wrist` as predictors to predict `bodyfat_brozek`. The candidate models from LASSO and criterion approach include the same predictors as the model from stepwise regression, but also include an additional predictor, `bicep`. Among the predictors in the candidate models, two-way ANOVA test(table?) reveals interaction between neck and abdomen has a significant p-value of 0.000477 for model 1 and a p-value of 0.000379 for model 2, indicating that it should be included in the model at a significance level of 5%. As a result, the final candidate models are as follows:
+
+- Candidate model 1: `bodyfat_brozek` ~ `age` + `height` +  `neck` +  `abdomen` + `forearm` + `wrist` + `neck:abdomen`
+ 
+- Candidate model 2: `bodyfat_brozek` ~ `age` + `height` +  `neck` +  `abdomen` + `forearm` + `wrist` + `bicep` + `neck:abdomen`
+
+The root mean squared error (RMSE) for 10-fold cross validation is 3.95 for model 1 and 3.98 for model 2, indicating that model 1 has better predictivity than model 2. The adjusted R-squared for both models is 0.7385, which means that `bicep` does not add value to the model. Diagnosis plots(figure?) also suggest that both models fit the underlying assumptions of linear regression. Based on these results, the final model chosen is candidate model 1.
+
+# Discussion
+Summary of the final model(Table8) for predicting body fat percentage:
+
+|Parameter|Coefficient|Interpretation (Holding all other variable constant)|
+|:----|:----|:----|
+|Intercept|-61.05|-
+|
+|Age|0.05|As age goes up by 1 year, the predicted body fat percentage will increase by approximately 0.05%.
+|
+|Height|-0.32|As height goes up by 1 inch, the predicted body fat percentage will decrease by approximately 0.32%.
+|
+|Neck|1.39|As neck circumference goes up by 1 cm, the predicted body fat percentage will increase by approximately 1.39%.
+|
+|Abdomen|1.48|As abdomen circumference goes up by 1 cm, the predicted body fat percentage will increase by approximately 1.48%.
+|
+|Forearm|0.28|As forearm circumference goes up by 1 cm, the predicted body fat percentage will increase by approximately 1.28%.
+|
+|Wrist|-1.61|As wrist circumference goes up by 1 cm, the predicted body fat percentage will decrease by approximately 1.61%.
+|
+|Neck:abdomen|-0.02|The effect of neck circumference on body fat percentage is slightly weaker when the abdomen circumference is also high.|
+
+There are several limitations to the study that should be considered when interpreting these results. First, the model might not be as accurate as ideal because it only considers the interactions between two variables, as determined through an ANOVA test. This means that other potential predictor variables or interactions may have been overlooked and could potentially influence the final model. Additionally, our dataset consisted of only 252 men, which may not be representative of the larger population. As a result, the final model has limited usage and accuracy if applied to a different population of men. Another limitation of our study is the noticeable error on body fat percentage, where one man was recorded as having a body fat percentage of 0%. This raises concerns about the reliability of the other data points and could potentially impact the accuracy of the model.
+Given these limitations, there are several avenues for future research that could help to improve upon the findings of our study. One possibility would be to replicate the study in a larger and more diverse sample, including both male and female subjects. Doing so could help to confirm the generalizability of our findings and identify any gender-specific differences in the predictors of body fat percentage. Additionally, future research could consider a wider range of predictor variables and interactions in order to further improve the model.
+
+# Reference
+
+1: [web1](https://www.hsph.harvard.edu/nutritionsource/healthy-weight/measuring-fat/)
+
+2: [web1](https://www.forbes.com/health/body/how-to-reduce-body-fat/#:~:text=With%20that%20said%2C%20general%20body,body%20fat%20classifies%20as%20obese.)
+
+3: [web1](https://www.tfah.org/report-details/state-of-obesity-2022/)
+
 
 # Appendix
 
