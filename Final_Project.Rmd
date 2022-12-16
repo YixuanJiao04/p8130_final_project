@@ -64,6 +64,8 @@ The root mean squared error (RMSE) for 10-fold cross validation is 3.95 for mode
 # Discussion
 Summary of the final model(Table8) for predicting body fat percentage:
 
+Table: Model Summary
+
 |Parameter|Coefficient|Interpretation (Holding all other variable constant)|
 |:----|:----|:----|
 |Intercept|-61.05|-
