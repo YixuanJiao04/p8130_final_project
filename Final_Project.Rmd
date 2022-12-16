@@ -18,6 +18,7 @@ library(MASS)
 library(car)
 library(interactions)
 library(GGally)
+library(patchwork)
 
 select <- dplyr::select
 knitr::opts_chunk$set(echo = FALSE, message = FALSE,fig.width = 6, fig.height = 4)
@@ -58,6 +59,15 @@ The candidate model from stepwise regression includes `age`, `height`, `neck`, `
 Candidate model 2: `bodyfat_brozek` ~ `age` + `height` +  `neck` +  `abdomen` + `forearm` + `wrist` + `bicep` + `neck:abdomen`
 The RMSE for 10-fold cross validation is 3.95 for model 1, and 3.98 for model 2. Therefore, model 1 has better predictivity than model 2. The adjusted R-squared for is 0.7385 for both model 1 and model 2, which means that `bicep` is not adding value to the model. Diagnosis plots(figure?) are also suggest that model 1 fits the underlying assumptions of linear regression better than model 2, because *add reasons*. In conclusion, the final model chosen is candidate model 1.
 
+# Appendix
+
+![](plots/bodyfat_brozek_pairs.png){width=70% height=70%}
+
+```{r results = 'hide'}
+#Shapiro test
+shapiro.test(df_body_fat$bodyfat_brozek)
+```
+
 ```{r}
 #Histogram of distribution of bodyfat
 df_body_fat_raw %>%
@@ -67,12 +77,11 @@ df_body_fat_raw %>%
   labs(title = "Distribution of Bodyfat Index Computed by Brozek equation",
        x = "Bodyfat Index Computed by Brozek equation",
        y = "Count",
-       caption = "Fig2: Distribution of Bodyfat Index Computed by Brozek equation")
+       caption = "Fig2: Distribution of Bodyfat Index Computed by Brozek equation") -> fig2
 ```
 
 ```{r}
-#Shapiro test
-shapiro.test(df_body_fat$bodyfat_brozek)
+fig2
 ```
 
 ```{r}
@@ -107,39 +116,23 @@ vif_df <-
 
 ggplot(data = vif_df,aes(y = variable, x = vif_values)) +
   geom_col() +
-  geom_vline(xintercept = 5,colour="red",linetype = "longdash") +
+  geom_vline(xintercept = 5,colour = "red",linetype = "longdash") +
   theme_bw() +
   labs(x = "VIF Value",
        y = "Variable",
        title = "VIF Value After Removing Highly Correlated Predictors",
        caption = "VIF Value After Removing Highly Correlated Predictors")
-
 ```
 
 ```{r}
-df_body_fat %>%
-  gtsummary::tbl_summary() %>%
-  gtsummary::as_kable(format = "latex", caption = "Discriptive Statistics")
-```
-
-
-```{r}
-#Stepwise 
 stepwise.fit <- step(mult.fit, direction='both',trace = FALSE)
-summary(stepwise.fit) %>% 
-  broom::tidy() %>% 
-  rename(Term = term,
-         Estimate = estimate,
-         `Standard Error` = std.error,
-         `Test Statisitcs` = statistic,
-         `P-value` = p.value) %>%
-  knitr::kable(digits = c(5,2,2,2), "latex",caption = "Parameter for Stepwise Model")
 ```
+
 
 ```{r results=FALSE}
 mat <- as.matrix(df_body_fat)
-leaps(x = mat[,c(-1)] , y = mat[,1], nbest = 1, method = "Cp")
-leaps(x = mat[,c(-1)] , y = mat[,1], nbest = 1, method = "adjr2")
+cp <- leaps(x = mat[,c(-1)] , y = mat[,1], nbest = 1, method = "Cp")$Cp
+adjr2 <- leaps(x = mat[,c(-1)] , y = mat[,1], nbest = 1, method = "adjr2")$adjr2
 ```
 
 ```{r}
@@ -176,7 +169,6 @@ ggplot(aes(x = lambda, y = mean_cv_error)) +
        y = "Mean CV Error",
        title = "Lambda vs. Mean CV Error") +
   theme_bw()
-  
 ```
 
 ```{r echo = TRUE}
@@ -215,17 +207,40 @@ interact_plot(update(stepwise.fit, . ~ . + neck*abdomen),pred = neck, modx = abd
 ```{r echo = TRUE}
 aov(update(stepwise.fit, . ~ . + neck*abdomen)) %>% summary
 aov(update(stepwise.fit, . ~ . + bicep + neck*abdomen)) %>% summary
-````
+```
 
 ```{r}
 final_mod1 <- update(stepwise.fit, . ~ . + neck*abdomen)
 final_mod2 <- update(stepwise.fit, . ~ . + bicep + neck*abdomen)
 par(mfrow = c(2,2))
-plot(final_mod1)
 ```
 
 ```{r}
 par(mfrow = c(2,2))
 plot(final_mod2)
+```
+
+```{r}
+#Discriptive Statistics table
+df_body_fat %>%
+  gtsummary::tbl_summary() %>%
+  gtsummary::as_kable(format = "latex", caption = "Discriptive Statistics")
+```
+
+```{r}
+#Stepwise model table
+summary(stepwise.fit) %>% 
+  broom::tidy() %>% 
+  rename(Term = term,
+         Estimate = estimate,
+         `Standard Error` = std.error,
+         `Test Statisitcs` = statistic,
+         `P-value` = p.value) %>%
+  knitr::kable(digits = c(5,2,2,2), "latex",caption = "Model Parameter for Stepwise Procedure")
+```
+
+```{r echo = TRUE}
+final_mod1 %>% summary
+plot(final_mod1)
 ```
 
