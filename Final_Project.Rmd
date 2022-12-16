@@ -21,7 +21,7 @@ library(GGally)
 library(patchwork)
 
 select <- dplyr::select
-knitr::opts_chunk$set(echo = FALSE, message = FALSE,fig.width = 6, fig.height = 4)
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE, fig.width = 6, fig.height = 4)
 set.seed(65)
 ```
 
@@ -37,6 +37,7 @@ df_body_fat <-
 ```
 # Abstract
 
+In this study, a multiple linear regression model is developed to predict body fat in men using scale and tape measurements. Candidate models are created using a dataset of 252 male subjects and are generated through the application of automatic procedures, criterion based procedures, and LASSO. Interactions between variables are also considered through two-way ANOVA. The final model chosen, based on its root mean square error, included age, height, neck circumference, abdomen circumference, forearm circumference, wrist circumference, and the interaction between neck and abdomen as predictors. These measurements are simple and widely available, making the model a useful tool for predicting body fat in a convenient manner.
 
 # Introduction
 
@@ -61,7 +62,7 @@ The RMSE for 10-fold cross validation is 3.95 for model 1, and 3.98 for model 2.
 
 # Appendix
 
-![](plots/bodyfat_brozek_pairs.png){width=70% height=70%}
+![](plots/bodyfat_brozek_pairs.png){width=65% height=65%}
 
 ```{r results = 'hide'}
 #Shapiro test
@@ -89,19 +90,19 @@ fig2
 mult.fit <- lm(bodyfat_brozek ~ .,data = df_body_fat_raw)
 
 vif_values <- vif(mult.fit)
-v_names <- str_to_title (names(vif_values))
+v_names <- str_to_title(names(vif_values))
 vif_df <- 
   tibble(variable = v_names, vif = vif_values) %>%
   mutate(variable = fct_reorder(variable,vif))
 
-ggplot(data = vif_df,aes(y = variable, x = vif_values)) +
-  geom_col() +
-  geom_vline(xintercept = 5,colour="red",linetype = "longdash") +
+ggplot(data = vif_df,aes(x = vif_values,y = variable)) +
+  geom_bar(stat = 'identity') +
+  geom_vline(xintercept = 5,colour = "red",linetype = "longdash") +
   theme_bw() +
   labs(x = "VIF Value",
        y = "Variable",
        title = "VIF Value of Predictors",
-       caption = "Fig3: VIF Value of Predictors")
+       caption = "Fig3a: VIF Value of Predictors")
 ```
 
 ```{r}
@@ -109,51 +110,48 @@ ggplot(data = vif_df,aes(y = variable, x = vif_values)) +
 mult.fit <- lm(bodyfat_brozek ~ .,data = df_body_fat)
 
 vif_values <- vif(mult.fit)
-v_names <- str_to_title (names(vif_values))
+v_names <- str_to_title(names(vif_values))
 vif_df <- 
   tibble(variable = v_names, vif = vif_values) %>%
   mutate(variable = fct_reorder(variable,vif))
 
-ggplot(data = vif_df,aes(y = variable, x = vif_values)) +
-  geom_col() +
+ggplot(data = vif_df,aes(x = vif_values,y = variable)) +
+  geom_bar(stat = 'identity') +
   geom_vline(xintercept = 5,colour = "red",linetype = "longdash") +
   theme_bw() +
   labs(x = "VIF Value",
        y = "Variable",
        title = "VIF Value After Removing Highly Correlated Predictors",
-       caption = "VIF Value After Removing Highly Correlated Predictors")
+       caption = "Fig3b: VIF Value After Removing Highly Correlated Predictors")
 ```
 
+
 ```{r}
+#Stepwise model
 stepwise.fit <- step(mult.fit, direction='both',trace = FALSE)
 ```
 
 
-```{r results=FALSE}
-mat <- as.matrix(df_body_fat)
-cp <- leaps(x = mat[,c(-1)] , y = mat[,1], nbest = 1, method = "Cp")$Cp
-adjr2 <- leaps(x = mat[,c(-1)] , y = mat[,1], nbest = 1, method = "adjr2")$adjr2
-```
-
 ```{r}
+#Criterion Figure
 rs <- regsubsets(bodyfat_brozek ~ ., data = df_body_fat, nbest = 1) %>% summary()
-```
-
-```{r}
 par(mfrow = c(1,2))
 plot(2:9, rs$cp, xlab="# of parameters", ylab="Cp Statistic")
+title("Fig4a Cp Vs. Model Size")
 abline(0,1)
 plot(2:9, rs$adjr2, xlab="# of parameters", ylab="Adj R2")
+title("Fig4b Adj R2 Vs. Model Size")
 ```
 
 ```{r}
 lambda_seq <- 10^seq(-3, 0, by = .1)
 cv_object <- cv.glmnet(as.matrix(df_body_fat[c(-1)]), df_body_fat$bodyfat_brozek,
-lambda = lambda_seq, nfolds = 5)
-cv_object
+lambda = lambda_seq, nfolds = 5) 
+#cv_object would print out opitmal lambda wiht minimal mean CV error.
 ```
 
 ```{r}
+#Lambda Figure
 highlight_lamda <- 
   tibble(lambda = cv_object$lambda,
 mean_cv_error = cv_object$cvm) %>%
@@ -162,69 +160,44 @@ mean_cv_error = cv_object$cvm) %>%
 
 tibble(lambda = cv_object$lambda,
 mean_cv_error = cv_object$cvm) %>%
-ggplot(aes(x = lambda, y = mean_cv_error)) +
-  geom_point() + 
-  geom_point(data = highlight_lamda[1,], aes(x = lambda, y = mean_cv_error, color = 'red')) +
-  labs(x = "Lambda",
-       y = "Mean CV Error",
-       title = "Lambda vs. Mean CV Error") +
-  theme_bw()
+  ggplot(aes(x = lambda, y = mean_cv_error)) +
+    geom_point() + 
+    geom_point(data = highlight_lamda[1,], aes(x = lambda, y = mean_cv_error, color = 'red')) +
+    labs(x = "Lambda",
+         y = "Mean CV Error",
+         title = "Lambda vs. Mean CV Error",
+         caption = "Fig5 Plot for Selecting the Optimal Lambda") +
+    theme_bw() -> fig5
+fig5 + theme(legend.position = "none")
 ```
 
-```{r echo = TRUE}
+```{r}
+#Lasso fit object
 lasso_fit <- glmnet(as.matrix(df_body_fat[c(-1)]), df_body_fat$bodyfat_brozek, lambda = cv_object$lambda.min)
-coef(lasso_fit)
-```
-
-```{r echo = TRUE}
-train = trainControl(method = "cv", number = 10)
-model_caret = train(bodyfat_brozek ~ age + height + neck + abdomen + 
-    forearm + bicep + wrist + neck:abdomen, data = df_body_fat,
-trControl = train,
-method = 'lm',
-na.action = na.pass)
-print(model_caret)
-
-train = trainControl(method = "cv", number = 10)
-model_caret = train(bodyfat_brozek ~ age + height + neck + abdomen + 
-    forearm + wrist + neck:abdomen, data = df_body_fat,
-trControl = train,
-method = 'lm',
-na.action = na.pass)
-print(model_caret)
-```
-
-```{r}
-inter_model <- lm(bodyfat_brozek ~ (age + height + neck + abdomen + forearm + wrist)^2, data = df_body_fat)
-interact_plot(inter_model,pred = neck, modx = abdomen)
-```
-
-```{r}
-interact_plot(update(stepwise.fit, . ~ . + neck*abdomen),pred = neck, modx = abdomen)
-```
-
-
-```{r echo = TRUE}
-aov(update(stepwise.fit, . ~ . + neck*abdomen)) %>% summary
-aov(update(stepwise.fit, . ~ . + bicep + neck*abdomen)) %>% summary
 ```
 
 ```{r}
 final_mod1 <- update(stepwise.fit, . ~ . + neck*abdomen)
-final_mod2 <- update(stepwise.fit, . ~ . + bicep + neck*abdomen)
-par(mfrow = c(2,2))
 ```
 
 ```{r}
+#Diagnostic Plot of Final Model
 par(mfrow = c(2,2))
-plot(final_mod2)
+plot(final_mod1)
+text(x = 1, y = 1, "Total", cex = 1.5, col = "red")
 ```
 
 ```{r}
-#Discriptive Statistics table
+ggplot() +
+  theme_minimal()
+```
+
+
+```{r}
+#Descriptive Statistics table
 df_body_fat %>%
   gtsummary::tbl_summary() %>%
-  gtsummary::as_kable(format = "latex", caption = "Discriptive Statistics")
+  gtsummary::as_kable(format = "latex", caption = "Descriptive Statistics")
 ```
 
 ```{r}
@@ -239,8 +212,90 @@ summary(stepwise.fit) %>%
   knitr::kable(digits = c(5,2,2,2), "latex",caption = "Model Parameter for Stepwise Procedure")
 ```
 
-```{r echo = TRUE}
-final_mod1 %>% summary
-plot(final_mod1)
+```{r}
+#Table for Cp and adjr2 value
+criterion_mat <- as.matrix(df_body_fat)
+cp <- leaps(x = criterion_mat[,c(-1)] , y = criterion_mat[,1], nbest = 1, method = "Cp")$Cp
+adjr2 <- leaps(x = criterion_mat[,c(-1)] , y = criterion_mat[,1], nbest = 1, method = "adjr2")$adjr2
+tibble(`Number of Parameter` = c(2:10),`Cp Value` = cp, `Adjusted R Square` = adjr2) %>%
+  knitr::kable(digits = c(0,2,3),"latex",caption = "Criterion Score For Different Model Sizes")
+```
+
+```{r}
+#LASSO model table
+lasso_fit %>% broom::tidy() %>%
+  select(term,estimate) %>%
+  rename(Term = term,
+         Esitmate = estimate) %>%
+  knitr::kable(digits = 3, "latex",caption = "Model Parameter for Lasso Fit")
+```
+
+```{r}
+#Validation for Candidate model 1 and 2
+train = trainControl(method = "cv", number = 10)
+model1_caret <- train(bodyfat_brozek ~ age + height + neck + abdomen + 
+    forearm + bicep + wrist + neck:abdomen, data = df_body_fat,
+trControl = train,
+method = 'lm',
+na.action = na.pass)
+mod1 <- model1_caret$results[c(2,3,4)] %>% as_tibble()
+
+
+train = trainControl(method = "cv", number = 10)
+model2_caret = train(bodyfat_brozek ~ age + height + neck + abdomen + 
+    forearm + wrist + neck:abdomen, data = df_body_fat,
+trControl = train,
+method = 'lm',
+na.action = na.pass)
+mod2 <- model2_caret$results[c(2,3,4)] %>% as_tibble()
+
+bind_rows(mod1,mod2) %>%
+  add_column(Model = c(1,2)) %>%
+  select(Model,everything()) %>%
+  rename(`R-square` = Rsquared) %>%
+  knitr::kable(digits = 2, "latex",caption = "Validation Results for Candidate models")
+```
+
+```{r}
+#Table of Two-way ANOVA Test for Model Candidate 1
+aov(update(stepwise.fit, . ~ . + bicep + neck*abdomen)) %>%
+  broom::tidy() %>%
+  filter(term != "Residuals") %>%
+  select(-df) %>%
+  rename(Term = term,
+         `P-value` = p.value,
+         SSE = sumsq,
+         MSE = meansq,
+         `F-stats` = statistic) %>%
+  dplyr::mutate_if(is.numeric, funs(as.character(signif(., 3)))) %>%
+  knitr::kable(digits = 2, "latex",caption = "Two-way ANOVA Test for Model Candidate 1")
+```
+
+```{r}
+#Table of Two-way ANOVA Test for Model Candidate 2
+aov(update(stepwise.fit, . ~ . + bicep + neck*abdomen)) %>%
+  broom::tidy() %>%
+  filter(term != "Residuals") %>%
+  select(-df) %>%
+  rename(Term = term,
+         `P-value` = p.value,
+         SSE = sumsq,
+         MSE = meansq,
+         `F-stats` = statistic) %>%
+  dplyr::mutate_if(is.numeric, funs(as.character(signif(., 3)))) %>%
+  knitr::kable(digits = 2, "latex",caption = "Two-way ANOVA Test for Model Candidate 2")
+```
+
+```{r}
+#Final Model Parameter
+summary(final_mod1) %>%
+  broom::tidy() %>% 
+  rename(Term = term,
+         Estimate = estimate,
+         `Standard Error` = std.error,
+         `Test Statisitcs` = statistic,
+         `P-value` = p.value) %>%
+  dplyr::mutate_if(is.numeric, funs(as.character(signif(., 3)))) %>%
+  knitr::kable(digits = 2, "latex",caption = "Final Model Parameter")
 ```
 
