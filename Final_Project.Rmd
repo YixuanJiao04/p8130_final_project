@@ -17,7 +17,6 @@ library(corrplot)
 library(caret)
 library(MASS)
 library(car)
-library(interactions)
 library(GGally)
 library(patchwork)
 
@@ -88,11 +87,11 @@ Given these limitations, there are several avenues for future research that coul
 
 # Reference
 
-1: [web1](https://www.hsph.harvard.edu/nutritionsource/healthy-weight/measuring-fat/)
+1: [Body fat. The Nutrition Source. (2022, August 2). Retrieved December 16, 2022, from https://www.hsph.harvard.edu/nutritionsource/healthy-weight/measuring-fat/](https://www.hsph.harvard.edu/nutritionsource/healthy-weight/measuring-fat/)
 
-2: [web1](https://www.forbes.com/health/body/how-to-reduce-body-fat/#:~:text=With%20that%20said%2C%20general%20body,body%20fat%20classifies%20as%20obese.)
+2: [Neumann, K. D. (2022, December 9). How to reduce body fat. Forbes. Retrieved December 16, 2022, from https://www.forbes.com/health/body/how-to-reduce-body-fat/#:~:text=With%20that%20said%2C%20general%20body,body%20fat%20classifies%20as%20obese.](https://www.forbes.com/health/body/how-to-reduce-body-fat/#:~:text=With%20that%20said%2C%20general%20body,body%20fat%20classifies%20as%20obese.)
 
-3: [web1](https://www.tfah.org/report-details/state-of-obesity-2022/)
+3: [State of obesity 2022: Better Policies for a healthier america. tfah. (2022, September 27). Retrieved December 16, 2022, from https://www.tfah.org/report-details/state-of-obesity-2022/](https://www.tfah.org/report-details/state-of-obesity-2022/)
 
 
 # Appendix
@@ -201,7 +200,7 @@ mean_cv_error = cv_object$cvm) %>%
     labs(x = "Lambda",
          y = "Mean CV Error",
          title = "Lambda vs. Mean CV Error",
-         caption = "Fig5 Plot for Selecting the Optimal Lambda") +
+         caption = "Fig5: Plot for Selecting the Optimal Lambda") +
     theme_bw() -> fig5
 fig5 + theme(legend.position = "none")
 ```
@@ -268,21 +267,21 @@ lasso_fit %>% broom::tidy() %>%
 ```{r}
 #Validation for Candidate model 1 and 2
 train = trainControl(method = "cv", number = 10)
-model1_caret <- train(bodyfat_brozek ~ age + height + neck + abdomen + 
+model2_caret <- train(bodyfat_brozek ~ age + height + neck + abdomen + 
     forearm + bicep + wrist + neck:abdomen, data = df_body_fat,
 trControl = train,
 method = 'lm',
 na.action = na.pass)
-mod1 <- model1_caret$results[c(2,3,4)] %>% as_tibble()
+mod2 <- model2_caret$results[c(2,3,4)] %>% as_tibble()
 
 
 train = trainControl(method = "cv", number = 10)
-model2_caret = train(bodyfat_brozek ~ age + height + neck + abdomen + 
+model1_caret = train(bodyfat_brozek ~ age + height + neck + abdomen + 
     forearm + wrist + neck:abdomen, data = df_body_fat,
 trControl = train,
 method = 'lm',
 na.action = na.pass)
-mod2 <- model2_caret$results[c(2,3,4)] %>% as_tibble()
+mod1 <- model1_caret$results[c(2,3,4)] %>% as_tibble()
 
 bind_rows(mod1,mod2) %>%
   add_column(Model = c(1,2)) %>%
@@ -308,7 +307,7 @@ aov(update(stepwise.fit, . ~ . + bicep + neck*abdomen)) %>%
 
 ```{r}
 #Table of Two-way ANOVA Test for Model Candidate 2
-aov(update(stepwise.fit, . ~ . + bicep + neck*abdomen)) %>%
+aov(update(stepwise.fit, . ~ . + neck*abdomen)) %>%
   broom::tidy() %>%
   filter(term != "Residuals") %>%
   select(-df) %>%
