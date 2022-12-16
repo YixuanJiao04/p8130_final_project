@@ -1,5 +1,5 @@
 ---
-title: "Final Project"
+title: "P8130 Final Project"
 author: "Yixuan Jiao, Landi Guo, Fengdi Zhang"
 date: "2022-12-13"
 output: pdf_document
@@ -98,7 +98,19 @@ Given these limitations, there are several avenues for future research that coul
 
 # Appendix
 
-![](plots/bodyfat_brozek_pairs.png){width=65% height=65%}
+![](plots/bodyfat_brozek_pairs.png)
+```{r}
+# Code for Fig1
+#df_body_fat %>%
+#  select(-bodyfat_siri, -body_density) %>%
+#  ggpairs() +
+#  labs(caption = "Fig1: Distributions for each Variable and Pairwise Relationship between each pair of Variables") +
+#  theme(plot.caption = element_text(size = 20),
+#        plot.caption.position = "plot")
+
+#("./plots/bodyfat_brozek_pairs.png", width = 14, height = 14)
+```
+
 
 ```{r results = 'hide'}
 #Shapiro test
@@ -222,12 +234,6 @@ par(mfrow = c(2,2))
 plot(final_mod1)
 text(x = 1, y = 1, "Total", cex = 1.5, col = "red")
 ```
-
-```{r}
-ggplot() +
-  theme_minimal()
-```
-
 
 ```{r}
 #Descriptive Statistics table
